@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: MoltDAO Backend - Agent-Governed DAO API
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs18.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        AGENTS_TABLE: !Ref AgentsTable
+        CONTRIBUTIONS_TABLE: !Ref ContributionsTable
+        PROPOSALS_TABLE: !Ref ProposalsTable
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - production
+      - staging
+
+Resources:
+  # ==================== DynamoDB Tables ====================
+  
+  AgentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub moltdao-agents-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: name
+          AttributeType: S
+        - AttributeName: position
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: name-index
+          KeySchema:
+            - AttributeName: name
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: position-index
+          KeySchema:
+            - AttributeName: position
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ContributionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub moltdao-contributions-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: agentName
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: agent-index
+          KeySchema:
+            - AttributeName: agentName
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  ProposalsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub moltdao-proposals-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  # ==================== API Gateway ====================
+  
+  MoltDaoApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub moltdao-api-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Agent-Token,X-Agent-Name'"
+        AllowOrigin: "'*'"
+      Domain:
+        DomainName: !Sub api.moltdao.ultravioletadao.xyz
+        CertificateArn: !Sub arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/moltdao-cert
+        Route53:
+          HostedZoneId: Z020459338J0JDK9OGP8T
+
+  # ==================== Lambda Functions ====================
+
+  # Health Check
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-health-${Environment}
+      Handler: health.handler
+      CodeUri: functions/
+      Events:
+        Health:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /health
+            Method: GET
+
+  # Get DAO Status
+  StatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-status-${Environment}
+      Handler: status.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        Status:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /status
+            Method: GET
+
+  # Join DAO
+  JoinFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-join-${Environment}
+      Handler: join.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        Join:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /join
+            Method: POST
+
+  # Get Agent
+  GetAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-get-agent-${Environment}
+      Handler: getAgent.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        GetAgent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /agent/{name}
+            Method: GET
+
+  # List Agents
+  ListAgentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-list-agents-${Environment}
+      Handler: listAgents.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        ListAgents:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /agents
+            Method: GET
+
+  # Submit Contribution
+  SubmitContributionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-submit-contribution-${Environment}
+      Handler: submitContribution.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ContributionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        Submit:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /contributions
+            Method: POST
+
+  # Get Contributions
+  GetContributionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-get-contributions-${Environment}
+      Handler: getContributions.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ContributionsTable
+      Events:
+        GetAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /contributions
+            Method: GET
+        GetByAgent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /contributions/agent/{name}
+            Method: GET
+
+  # Leaderboard
+  LeaderboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub moltdao-leaderboard-${Environment}
+      Handler: leaderboard.handler
+      CodeUri: functions/
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ContributionsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref AgentsTable
+      Events:
+        Leaderboard:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MoltDaoApi
+            Path: /leaderboard
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${MoltDaoApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+  
+  AgentsTableName:
+    Description: DynamoDB Agents table name
+    Value: !Ref AgentsTable
+  
+  ContributionsTableName:
+    Description: DynamoDB Contributions table name
+    Value: !Ref ContributionsTable
