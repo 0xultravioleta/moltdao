@@ -175,13 +175,42 @@ app.get('/api/agents', (req, res) => {
     });
 });
 
-// Import routes
+// Import routes and services
 const governanceRoutes = require('./routes/governance');
 const contributionsRoutes = require('./routes/contributions');
+const snapshot = require('./services/snapshot');
 
 // Mount routes
 app.use('/api/governance', governanceRoutes);
 app.use('/api/contributions', contributionsRoutes);
+
+// Snapshot voting power endpoint (root level for API strategy)
+// This is required by Snapshot's custom API voting strategy
+app.get('/api/voting-power', (req, res) => {
+    const { addresses } = req.query;
+    
+    if (!addresses) {
+        return res.status(400).json({
+            success: false,
+            error: 'addresses query parameter required (comma-separated)'
+        });
+    }
+    
+    const addressList = addresses.split(',').map(a => a.trim());
+    const data = loadAgents();
+    const scores = {};
+    
+    for (const addr of addressList) {
+        const agent = data.agents.find(a => 
+            a.name?.toLowerCase() === addr.toLowerCase() ||
+            a.wallet?.toLowerCase() === addr.toLowerCase()
+        );
+        scores[addr] = agent ? snapshot.calculateVotingPower(agent) : 0;
+    }
+    
+    // Snapshot expects { scores: { address: power } }
+    res.json({ scores });
+});
 
 // Legacy routes (redirect to new)
 app.get('/api/proposals', (req, res) => {
