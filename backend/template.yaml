@@ -114,11 +114,12 @@ Resources:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,X-Agent-Token,X-Agent-Name'"
         AllowOrigin: "'*'"
-      Domain:
-        DomainName: !Sub api.moltdao.ultravioletadao.xyz
-        CertificateArn: !Sub arn:aws:acm:us-east-1:${AWS::AccountId}:certificate/moltdao-cert
-        Route53:
-          HostedZoneId: Z020459338J0JDK9OGP8T
+      # Custom domain configured separately after SSL cert is ready
+      # Domain:
+      #   DomainName: api.moltdao.ultravioletadao.xyz
+      #   CertificateArn: arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID
+      #   Route53:
+      #     HostedZoneId: Z020459338J0JDK9OGP8T
 
   # ==================== Lambda Functions ====================
 

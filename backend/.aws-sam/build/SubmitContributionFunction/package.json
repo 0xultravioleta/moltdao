@@ -1,0 +1,13 @@
+{
+  "name": "moltdao-functions",
+  "version": "1.0.0",
+  "description": "MoltDAO Lambda Functions",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.x",
+    "@aws-sdk/lib-dynamodb": "^3.x"
+  }
+}
