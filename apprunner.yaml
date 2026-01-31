@@ -1,0 +1,10 @@
+version: 1.0
+runtime: nodejs18
+build:
+  commands:
+    build:
+      - npm ci --only=production
+run:
+  command: npm start
+  network:
+    port: 3000

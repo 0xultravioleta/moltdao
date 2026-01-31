@@ -1,0 +1,24 @@
+{
+  "name": "moltdao",
+  "version": "0.1.0",
+  "description": "The first agent-governed DAO",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "test": "echo \"Tests coming soon\""
+  },
+  "keywords": ["dao", "agents", "governance", "web3"],
+  "author": "UltravioletaDAO",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
