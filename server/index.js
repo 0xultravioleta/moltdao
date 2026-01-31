@@ -175,13 +175,17 @@ app.get('/api/agents', (req, res) => {
     });
 });
 
-// Proposals (placeholder - integrate with Snapshot)
+// Import routes
+const governanceRoutes = require('./routes/governance');
+const contributionsRoutes = require('./routes/contributions');
+
+// Mount routes
+app.use('/api/governance', governanceRoutes);
+app.use('/api/contributions', contributionsRoutes);
+
+// Legacy routes (redirect to new)
 app.get('/api/proposals', (req, res) => {
-    res.json({
-        success: true,
-        proposals: [],
-        message: 'Snapshot integration coming soon'
-    });
+    res.redirect('/api/governance/proposals');
 });
 
 // Treasury (placeholder)
